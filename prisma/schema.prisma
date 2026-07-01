@@ -1,0 +1,51 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  password      String?
+  avatarUrl     String?
+  provider      String?
+  providerId    String?     @unique
+  walletBalance Decimal   @default(0.00)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  payments      Payment[]
+
+  @@map("users")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Detalhes da transação
+  amount          Decimal
+  donatorName     String        @default("Anônimo")
+  message         String?
+  status          PaymentStatus @default(PENDING)
+
+  gateway         String
+  txId            String        @unique
+  pixCopyPaste    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("payments")
+}
