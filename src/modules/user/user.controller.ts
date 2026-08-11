@@ -5,26 +5,18 @@ import {
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { UserService } from './user.service';
-import { User } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  /**
-   * Busca um usuário pelo ID
-   */
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
-  async findOne(@Param('id') id: string): Promise<User> {
+  @UseGuards(JwtAuthGuard)
+  async findOne(@Param('id') id: string) {
     const user = await this.userService.findById(id);
-
-    if (!user) {
-      throw new NotFoundException('Usuário não encontrado.');
-    }
-
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
     return user;
   }
 }

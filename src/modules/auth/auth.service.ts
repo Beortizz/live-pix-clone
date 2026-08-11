@@ -1,11 +1,19 @@
-// src/modules/auth/auth.service.ts
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
-import { User } from '@prisma/client';
-import { LoginDto } from './dto/login.dto';
-import { CreateUserDto } from '../user/dto/create-user.dto';
+import type { User } from '@prisma/client';
+import type { RegisterDto, LoginDto } from './schemas/auth.schemas';
 import * as bcrypt from 'bcrypt';
+
+export interface OAuthUserData {
+  provider: string;
+  providerId: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  accessToken: string;
+  refreshToken?: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -14,7 +22,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(dto: CreateUserDto): Promise<{ access_token: string }> {
+  async register(dto: RegisterDto): Promise<{ access_token: string }> {
     const user = await this.userService.create(dto);
     return this.generateToken(user);
   }
@@ -34,10 +42,37 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  private generateToken(user: User): { access_token: string } {
-    const payload = { email: user.email, sub: user.id };
+  async validateOAuthUser(data: OAuthUserData): Promise<User> {
+    let user = await this.userService.findByProviderId(
+      data.provider,
+      data.providerId,
+    );
+
+    if (user) return user;
+
+    user = await this.userService.findByEmail(data.email);
+
+    if (user) {
+      if (!user.provider || !user.providerId) {
+        return this.userService.linkOAuthAccount(user.id, data);
+      }
+      throw new UnauthorizedException(
+        'Este e-mail já está vinculado a outra conta.',
+      );
+    }
+
+    return this.userService.createOAuthUser(data);
+  }
+
+  loginOAuth(user: Pick<User, 'id' | 'email'>): { access_token: string } {
+    return this.generateToken(user);
+  }
+
+  private generateToken(
+    user: Pick<User, 'id' | 'email'>,
+  ): { access_token: string } {
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign({ sub: user.id, email: user.email }),
     };
   }
 }

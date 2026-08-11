@@ -1,5 +1,1 @@
-export class CreateUserDto {
-  email: string;
-  name: string;
-  password: string;
-}
+export type { RegisterDto as CreateUserDto } from '../../auth/schemas/auth.schemas';
